@@ -70,8 +70,8 @@ objects:
       description: "Keeps track of the Memcached image changes"
   spec:
     dockerImageRepository: "${MEMCACHED_IMG_NAME}"
-- apiVersion: apps/v1beta1
-  kind: "StatefulSet"
+- apiVersion: v1
+  kind: "DeploymentConfig"
   metadata:
     name: ${NAME}
     annotations:
@@ -105,14 +105,13 @@ objects:
             protocol: TCP
           - containerPort: 443
             protocol: TCP
-          volumeMounts:
-              -
-                name: "${NAME}-server"
-                mountPath: "/persistent"
           env:
             -
               name: "APPLICATION_INIT_DELAY"
               value: "${APPLICATION_INIT_DELAY}"
+            -
+              name: "GUID"
+              value: "${GUID}"
             -
               name: "DATABASE_SERVICE_NAME"
               value: "${DATABASE_SERVICE_NAME}"
@@ -143,26 +142,9 @@ objects:
               cpu: "${APPLICATION_CPU_REQ}"
             limits:
               memory: "${APPLICATION_MEM_LIMIT}"
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /opt/manageiq/container-scripts/sync-pv-data
         serviceAccount: miq-anyuid
         serviceAccountName: miq-anyuid
         terminationGracePeriodSeconds: 90
-    volumeClaimTemplates:
-      - metadata:
-          name: "${NAME}-server"
-          annotations:
-            # Uncomment this if using dynamic volume provisioning.
-            # https://docs.openshift.org/latest/install_config/persistent_storage/dynamically_provisioning_pvs.html
-            # volume.alpha.kubernetes.io/storage-class: anything
-        spec:
-          accessModes: [ ReadWriteOnce ]
-          resources:
-            requests:
-              storage: "${APPLICATION_VOLUME_CAPACITY}"
 - apiVersion: v1
   kind: "Service"
   metadata:
@@ -275,6 +257,13 @@ parameters:
     required: true
     description: "The name assigned to all of the frontend objects defined in this template."
     value: manageiq
+  -
+    name: "GUID"
+    displayName: "ManageIQ Application GUID"
+    required: true
+    description: "The global identifier string for this ManageIQ application"
+    from: "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"
+    generate: expression
   -
     name: "V2_KEY"
     displayName: "ManageIQ Encryption Key"

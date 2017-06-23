@@ -8,8 +8,6 @@ ARG REF=master
 ENV TERM=xterm \
     CONTAINER=true \
     APP_ROOT=/var/www/miq/vmdb \
-    APP_ROOT_PERSISTENT=/persistent \
-    APP_ROOT_PERSISTENT_REGION=/persistent-region \
     APPLIANCE_ROOT=/opt/manageiq/manageiq-appliance \
     SUI_ROOT=/opt/manageiq/manageiq-ui-service \ 
     CONTAINER_SCRIPTS_ROOT=/opt/manageiq/container-scripts \
@@ -81,8 +79,6 @@ RUN curl -L https://github.com/ManageIQ/manageiq/tarball/${REF} | tar vxz -C ${A
 ## Setup environment
 RUN ${APPLIANCE_ROOT}/setup && \
     mkdir ${APP_ROOT}/log/apache && \
-    mkdir ${APP_ROOT_PERSISTENT} && \
-    mkdir ${APP_ROOT_PERSISTENT_REGION} && \
     mkdir -p ${CONTAINER_SCRIPTS_ROOT} && \
     mv /etc/httpd/conf.d/ssl.conf{,.orig} && \
     echo "# This file intentionally left blank. ManageIQ maintains its own SSL configuration" > /etc/httpd/conf.d/ssl.conf && \
@@ -122,7 +118,6 @@ EXPOSE 80 443
 
 ## Copy OpenShift and appliance-initialize scripts
 COPY docker-assets/entrypoint /usr/bin
-COPY docker-assets/container.data.persist /
 COPY docker-assets/appliance-initialize.sh /bin
 ADD  docker-assets/container-scripts ${CONTAINER_SCRIPTS_ROOT}
 
