@@ -79,6 +79,14 @@ objects:
   spec:
     dockerImageRepository: "${MEMCACHED_IMG_NAME}"
 - apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: manageiq-worker
+    annotations:
+      description: "Keeps track of the ManageIQ worker image changes"
+  spec:
+    dockerImageRepository: "${WORKER_IMG_NAME}"
+- apiVersion: v1
   kind: PersistentVolumeClaim
   metadata:
     name: "${NAME}-${DATABASE_SERVICE_NAME}"
@@ -341,6 +349,72 @@ objects:
                 cpu: "${POSTGRESQL_CPU_REQ}"
               limits:
                 memory: "${POSTGRESQL_MEM_LIMIT}"
+- apiVersion: v1
+  kind: "DeploymentConfig"
+  metadata:
+    name: "generic-worker"
+    annotations:
+      description: "Defines how to deploy the generic worker container"
+  spec:
+    strategy:
+      type: "Recreate"
+    triggers:
+      -
+        type: "ImageChange"
+        imageChangeParams:
+          automatic: true
+          containerNames:
+            - "generic-worker"
+          from:
+            kind: "ImageStreamTag"
+            name: "manageiq-worker:${WORKER_IMG_TAG}"
+      -
+        type: "ConfigChange"
+    replicas: 0
+    selector:
+      name: "generic-worker"
+    template:
+      metadata:
+        name: "generic-worker"
+        labels:
+          name: "generic-worker"
+      spec:
+        containers:
+        - name: "generic-worker"
+          image: "${WORKER_IMG_NAME}:${WORKER_IMG_TAG}"
+          env:
+          -
+            name: "GUID"
+            value: "${GUID}"
+          -
+            name: "DATABASE_SERVICE_NAME"
+            value: "${DATABASE_SERVICE_NAME}"
+          -
+            name: "DATABASE_REGION"
+            value: "${DATABASE_REGION}"
+          -
+            name: "DATABASE_URL"
+            valueFrom:
+              secretKeyRef:
+                name: "${NAME}-secrets"
+                key: "database-url"
+          -
+            name: "MEMCACHED_SERVER"
+            value: "${MEMCACHED_SERVICE_NAME}:11211"
+          -
+            name: "MEMCACHED_SERVICE_NAME"
+            value: "${MEMCACHED_SERVICE_NAME}"
+          -
+            name: "V2_KEY"
+            valueFrom:
+              secretKeyRef:
+                name: "${NAME}-secrets"
+                key: "v2-key"
+          -
+            name: "WORKER_CLASS_NAME"
+            value: "MiqGenericWorker"
+        serviceAccount: miq-anyuid
+        serviceAccountName: miq-anyuid
 
 parameters:
   -
@@ -509,6 +583,16 @@ parameters:
     displayName: "Application Image Tag"
     description: "This is the Application image tag/version requested to deploy."
     value: "app-latest"
+  -
+    name: "WORKER_IMG_NAME"
+    displayName: "Worker Image Name"
+    description: "This is the worker image name requested to deploy."
+    value: "docker.io/carbonin/manageiq-worker"
+  -
+    name: "WORKER_IMG_TAG"
+    displayName: "Worker Image Tag"
+    description: "This is the worker image tag/version requested to deploy."
+    value: "latest"
   -
     name: "APPLICATION_DOMAIN"
     displayName: "Application Hostname"

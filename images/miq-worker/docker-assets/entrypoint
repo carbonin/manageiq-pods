@@ -1,0 +1,19 @@
+#!/bin/bash
+
+[[ -s /etc/default/evm ]] && source /etc/default/evm
+
+[[ -s ${CONTAINER_SCRIPTS_ROOT}/container-deploy-common.sh ]] && source "${CONTAINER_SCRIPTS_ROOT}/container-deploy-common.sh"
+
+# Check Memcached readiness if we were given the service name
+[ -n "$MEMCACHED_SERVICE_NAME" ] && check_svc_status ${MEMCACHED_SERVICE_NAME} 11211
+
+# Check DB readiness if we were given the service name
+[ -n "$DATABASE_SERVICE_NAME" ] && check_svc_status ${DATABASE_SERVICE_NAME} 5432
+
+write_v2_key
+
+write_guid
+
+export DISABLE_MIQ_WORKER_HEARTBEAT=1
+
+exec ruby ${APP_ROOT}/lib/workers/bin/run_single_worker.rb ${WORKER_CLASS_NAME}
